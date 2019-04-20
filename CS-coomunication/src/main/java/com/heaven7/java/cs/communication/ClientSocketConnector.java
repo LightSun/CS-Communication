@@ -1,0 +1,62 @@
+package com.heaven7.java.cs.communication;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.Socket;
+
+/**
+ * @author heaven7
+ */
+public class ClientSocketConnector implements ClientCommunicator.Connector {
+
+    private final HostDelegate mHost;
+    private Socket mSocket;
+
+    public ClientSocketConnector(HostDelegate mHost) {
+        this.mHost = mHost;
+    }
+
+    @Override
+    public void connect() throws IOException {
+        mSocket = new Socket(mHost.getHostName(), mHost.getHostPort());
+    }
+
+    @Override
+    public void disconnect() throws IOException {
+        mSocket.getOutputStream().close();
+        mSocket.getInputStream().close();
+        mSocket.close();
+    }
+
+    @Override
+    public OutputStream getOutputStream() throws IOException {
+        return mSocket.getOutputStream();
+    }
+    @Override
+    public InputStream getInputStream()throws IOException {
+        return mSocket.getInputStream();
+    }
+
+    public interface HostDelegate{
+        String getHostName();
+        int getHostPort();
+    }
+
+    public static class SimpleHost implements HostDelegate{
+        private String name;
+        private int port;
+        public SimpleHost(String name, int port) {
+            this.name = name;
+            this.port = port;
+        }
+        @Override
+        public String getHostName() {
+            return name;
+        }
+        @Override
+        public int getHostPort() {
+            return port;
+        }
+    }
+}
