@@ -1,5 +1,7 @@
 package com.heaven7.java.cs.communication;
 
+import com.heaven7.java.base.util.Disposable;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,5 +34,12 @@ public class SocketClientConnection implements ServerCommunicator.ClientConnecti
     @Override
     public boolean isAlive() {
         return mSocket.isConnected() && !mSocket.isClosed();
+    }
+
+    @Override
+    public void close() throws IOException{
+        mSocket.getInputStream().close();
+        mSocket.getOutputStream().close();
+        mSocket.close();
     }
 }

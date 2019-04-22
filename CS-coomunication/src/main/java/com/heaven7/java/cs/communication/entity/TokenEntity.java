@@ -7,7 +7,7 @@ import com.heaven7.java.message.protocol.anno.Inherit;
  * @author heaven7
  */
 @FieldMembers
-public class TokenEntity {
+public class TokenEntity extends BaseEntity{
 
     @Inherit
     private int type;

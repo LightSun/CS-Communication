@@ -6,8 +6,11 @@ import com.heaven7.java.message.protocol.anno.Inherit;
 /**
  * @author heaven7
  */
-public class LoginEntity {
+public class BaseEntity {
 
+    /**
+     * for request this is temp token, for response. this is real token for next every request,
+     */
     @FieldMember
     @Inherit
     private String token;

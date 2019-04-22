@@ -2,11 +2,9 @@ package com.heaven7.java.cs.communication;
 
 import com.heaven7.java.base.util.Disposable;
 import com.heaven7.java.base.util.ThreadProxy;
-import com.heaven7.java.cs.communication.entity.LoginEntity;
-import com.heaven7.java.cs.communication.entity.TokenEntity;
+import com.heaven7.java.cs.communication.entity.BaseEntity;
 import com.heaven7.java.message.protocol.Message;
 import com.heaven7.java.message.protocol.MessageConfigManager;
-import com.heaven7.java.message.protocol.MessageProtocol;
 import com.heaven7.java.message.protocol.OkMessage;
 import okio.BufferedSink;
 import okio.BufferedSource;
@@ -21,7 +19,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.heaven7.java.cs.communication.CSConstant.MSG_INVALID_TMP_TOKEN;
+import static com.heaven7.java.cs.communication.CSConstant.MSG_INVALID_TOKEN;
 
 /** @author heaven7 */
 public final class ServerCommunicator implements Disposable {
@@ -50,6 +48,7 @@ public final class ServerCommunicator implements Disposable {
         InputStream getInputStream() throws IOException;
         String getRemoteUniqueKey();
         boolean isAlive();
+        void close()  throws IOException;
     }
 
     private static final CSThreadFactory sFACTORY = new CSThreadFactory("ServerCommunicator");
@@ -133,19 +132,29 @@ public final class ServerCommunicator implements Disposable {
                         Message<?> msg = conn.readMessage();
                         if(msg != null){
                             ClientInfo clientInfo = mClientInfoMap.get(uniqueKey);
+                            BaseEntity entity = (BaseEntity) msg.getEntity();
+
+                            //non-login need validate token
+                            if(msg.getType() != Message.LOGIN){
+                                String token = entity.getToken();
+                                if(!clientInfo.token.equals(token)){
+                                    conn.sendMessage(Message.create(CSConstant.MSG_TOKEN_FAILED, CSConstant.MSG_INVALID_TOKEN, null), clientInfo.version);
+                                    continue;
+                                }
+                            }
                             switch (msg.getType()){
                                 case Message.LOGIN:
-                                    LoginEntity entity = (LoginEntity) msg.getEntity();
                                     if(mInternalCallback.validateTempToken(entity.getToken())){
                                         clientInfo.version = entity.getVersion();
                                         clientInfo.token = mInternalCallback.generateToken(entity.getToken(), uniqueKey);
+                                        clientInfo.lastTickTime = System.currentTimeMillis();
                                         conn.permit = true;
                                         //gen token and response.
                                         entity.setToken(clientInfo.token);
                                         entity.setVersion(MessageConfigManager.getVersion());
                                         conn.sendMessage(Message.create(Message.LOGIN, CSConstant.SUCCESS, entity), clientInfo.version);
                                     }else{
-                                        conn.sendMessage(Message.create(CSConstant.MSG_LOGIN_FAILED, MSG_INVALID_TMP_TOKEN, null));
+                                        conn.sendMessage(Message.create(CSConstant.MSG_LOGIN_FAILED, MSG_INVALID_TOKEN, null));
                                         removeClient = true;
                                     }
                                     break;
@@ -154,6 +163,10 @@ public final class ServerCommunicator implements Disposable {
                                     {
                                         clientInfo.lastTickTime = System.currentTimeMillis();
                                     }
+                                    break;
+
+                                case Message.LOGOUT:
+                                    removeClient = true;
                                     break;
 
                                 default:
@@ -168,6 +181,7 @@ public final class ServerCommunicator implements Disposable {
                     if(removeClient){
                         connections.remove(conn);
                         mClientInfoMap.remove(uniqueKey);
+                        conn.close();
                     }
                 }
                 list.clear();
@@ -208,6 +222,13 @@ public final class ServerCommunicator implements Disposable {
         public boolean sendMessage(Message<Object> msg) {
             OkMessage.writeMessage(sink, msg, CSConstant.TYPE_RSA_SINGLE, MessageConfigManager.getVersion());
             return true;
+        }
+        public void close() {
+            try {
+                connection.close();
+            } catch (IOException e) {
+                //ignore
+            }
         }
     }
 }
