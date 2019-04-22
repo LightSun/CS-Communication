@@ -3,6 +3,7 @@ package com.heaven7.java.cs.communication;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 
 /**
@@ -22,5 +23,14 @@ public class SocketClientConnection implements ServerCommunicator.ClientConnecti
     @Override
     public InputStream getInputStream() throws IOException {
         return mSocket.getInputStream();
+    }
+    @Override
+    public String getRemoteUniqueKey() {
+        InetSocketAddress address = (InetSocketAddress) mSocket.getRemoteSocketAddress();
+        return address.getHostString();
+    }
+    @Override
+    public boolean isAlive() {
+        return mSocket.isConnected() && !mSocket.isClosed();
     }
 }

@@ -25,7 +25,7 @@ import static com.heaven7.java.cs.communication.CSConstant.TYPE_RSA_SINGLE;
  * 1, 建立连接 2, cs认证 ->返回一个token 3. 开启tick. 4, ...wait for break. 5, 重连机制
  *
  */
-public final class ClientCommunicator implements Disposable, ProductContext {
+public final class ClientCommunicator implements Disposable, ProductContext, IMessageSender {
 
     public interface Connector {
         void connect() throws IOException;
@@ -36,7 +36,7 @@ public final class ClientCommunicator implements Disposable, ProductContext {
     }
 
     public interface Callback{
-        void handleMessage(ClientCommunicator clientCommunicator, Message<Object> obj);
+        void handleMessage(IMessageSender sender, Message<Object> obj);
     }
 
     private static final CSThreadFactory sFACTORY = new CSThreadFactory("ClientCommunicator");
@@ -78,7 +78,16 @@ public final class ClientCommunicator implements Disposable, ProductContext {
         mInHelper.start();
         return true;
     }
+    @Override
+    public boolean sendMessage(Message<Object> msg, float version) {
+        if(mOutService != null){
+            mOutProducer.getPipe().addProduct(msg);
+            return true;
+        }
+        return false;
+    }
 
+    @Override
     public boolean sendMessage(Message<Object> msg) {
         if(mOutService != null){
             mOutProducer.getPipe().addProduct(msg);

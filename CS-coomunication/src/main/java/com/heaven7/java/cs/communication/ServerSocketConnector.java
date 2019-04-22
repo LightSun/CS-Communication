@@ -42,7 +42,7 @@ public class ServerSocketConnector implements ServerCommunicator.Connector {
         @Override
         public void run() {
             try{
-                while (true){
+                while (server != null){
                     Socket socket = server.accept();
                     //handle client too many ?
                     reporter.reportNewConnection(new SocketClientConnection(socket));
