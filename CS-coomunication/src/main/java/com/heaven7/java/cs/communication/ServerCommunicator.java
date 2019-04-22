@@ -28,7 +28,6 @@ public final class ServerCommunicator implements Disposable {
 
     public interface Callback{
         void handleMessage(IMessageSender sender, Message<?> msg, float version);
-        boolean validateTempToken(String token);
     }
 
     public interface InternalCallback{
@@ -137,7 +136,7 @@ public final class ServerCommunicator implements Disposable {
                             switch (msg.getType()){
                                 case Message.LOGIN:
                                     LoginEntity entity = (LoginEntity) msg.getEntity();
-                                    if(mCallback.validateTempToken(entity.getToken())){
+                                    if(mInternalCallback.validateTempToken(entity.getToken())){
                                         clientInfo.version = entity.getVersion();
                                         clientInfo.token = mInternalCallback.generateToken(entity.getToken(), uniqueKey);
                                         conn.permit = true;
