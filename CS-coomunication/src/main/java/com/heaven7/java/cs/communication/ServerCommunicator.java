@@ -38,7 +38,7 @@ public final class ServerCommunicator implements Disposable {
         void onTickTimeTimeout(ClientInfo info);
 
         /**
-         * accept token if the token is wanted
+         * accept token if the token is accept from target permit ids.
          * @param token the token of client
          * @param ids the ids from {@linkplain ServerCommunicator#sendBroadcast(Message, List)}
          * @return true if accept.
