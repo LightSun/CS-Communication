@@ -7,10 +7,8 @@ public interface CSConstant {
 
     int TYPE_RSA_SINGLE = 1;
 
-    int MSG_LOGIN_FAILED = 10;
-    /** wrong token */
-    int MSG_TOKEN_FAILED = 11;
+    String INVALID_TOKEN = "invalid token";
+    String SUCCESS = "operation success";
 
-    String MSG_INVALID_TOKEN = "invalid token";
-    String SUCCESS = "success";
+    String YOU_SHOULD_LOGIN_FIRST = "you must login first!";
 }

@@ -16,5 +16,5 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
 
     compile 'com.heaven7.java.pc:Produce-consume:1.0.0'
-    compile 'com.heaven7.java.message.protocol:Message-protocol:1.0.1'
+    compile 'com.heaven7.java.message.protocol:Message-protocol:1.0.2'
 }
