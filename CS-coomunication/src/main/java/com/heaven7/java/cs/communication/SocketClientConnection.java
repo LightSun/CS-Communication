@@ -1,7 +1,5 @@
 package com.heaven7.java.cs.communication;
 
-import com.heaven7.java.base.util.Disposable;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

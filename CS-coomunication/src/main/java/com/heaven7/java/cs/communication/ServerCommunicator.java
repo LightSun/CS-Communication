@@ -26,16 +26,29 @@ import static com.heaven7.java.cs.communication.CSConstant.SUCCESS;
 import static com.heaven7.java.cs.communication.CSConstant.YOU_SHOULD_LOGIN_FIRST;
 
 /** @author heaven7 */
-public final class ServerCommunicator implements Disposable {
+public class ServerCommunicator implements Disposable {
 
     public interface Callback {
-        void handleMessage(IMessageSender sender, Message<?> msg, float version);
-    }
-
-    public interface InternalCallback {
+        /**
+         * validate the temp token if is valid return true.
+         * @param token the token
+         * @return true if is permit
+         */
         boolean validateTempToken(String token);
+
+        /**
+         * generate token for target user
+         * @param tmpToken the temp token
+         * @param userKey the user key
+         * @return the generate token. can't be null
+         */
         String generateToken(String tmpToken, String userKey);
-        void onTickTimeTimeout(ClientInfo info);
+
+        /**
+         * called on the client tick time is time out.
+         * @param token the token of the client.
+         */
+        void onTickTimeTimeout(String token);
 
         /**
          * accept token if the token is accept from target permit ids.
@@ -61,28 +74,29 @@ public final class ServerCommunicator implements Disposable {
         InputStream getInputStream() throws IOException;
 
         String getRemoteUniqueKey();
-
         boolean isAlive();
         void close() throws IOException;
     }
 
     private static final String TAG = "ServerCommunicator";
     private static final CSThreadFactory sFACTORY = new CSThreadFactory(TAG);
-    private final ThreadProxy mProxy;
-    private final AtomicInteger mConnectCount = new AtomicInteger(0);
-    private final Reporter0 mReporter = new Reporter0();
-    private Looper mLooper;
-
-    private final Connector mConnector;
-    private final Callback mCallback;
-    private final long mMaxTickTimeSpace;
-    private InternalCallback mInternalCallback;
 
     private final Map<String, ClientInfo> mClientInfoMap = new ConcurrentHashMap<>();
 
-    public ServerCommunicator(long tickTimeSpace, Connector connector, Callback callback) {
-        this.mCallback = callback;
+    private final AtomicInteger mConnectCount = new AtomicInteger(0);
+    private final Reporter0 mReporter = new Reporter0();
+    private final ThreadProxy mProxy;
+    private Looper mLooper;
+
+    private final long mMaxTickTimeSpace;
+    private final Connector mConnector;
+    private final MessageHandler nHandler;
+    private final Callback mInternalCallback;
+
+    public ServerCommunicator(long tickTimeSpace, Callback mInternalCallback, Connector connector, MessageHandler handler) {
+        this.nHandler = handler;
         this.mProxy = ThreadProxy.create(sFACTORY);
+        this.mInternalCallback = mInternalCallback;
         this.mConnector = connector;
         this.mMaxTickTimeSpace = tickTimeSpace;
     }
@@ -212,7 +226,7 @@ public final class ServerCommunicator implements Disposable {
                             if ((System.currentTimeMillis() - clientInfo.lastTickTime)
                                     >= mMaxTickTimeSpace) {
                                 removeClient = true;
-                                mInternalCallback.onTickTimeTimeout(clientInfo);
+                                mInternalCallback.onTickTimeTimeout(clientInfo.token);
                             }
                         }
                     } else {
@@ -290,7 +304,7 @@ public final class ServerCommunicator implements Disposable {
                                 new Runnable() {
                                     @Override
                                     public void run() {
-                                        mCallback.handleMessage(conn, msg, clientInfo.version);
+                                        nHandler.handleMessage(conn, msg, clientInfo.version);
                                     }
                                 });
             }

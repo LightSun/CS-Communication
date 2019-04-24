@@ -24,9 +24,12 @@ public class ClientSocketConnector implements ClientCommunicator.Connector {
 
     @Override
     public void disconnect() throws IOException {
-        mSocket.getOutputStream().close();
-        mSocket.getInputStream().close();
-        mSocket.close();
+        if(mSocket != null){
+            mSocket.getOutputStream().close();
+            mSocket.getInputStream().close();
+            mSocket.close();
+            mSocket = null;
+        }
     }
 
     @Override

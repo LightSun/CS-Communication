@@ -4,6 +4,7 @@ import com.heaven7.java.base.util.Disposable;
 import com.heaven7.java.base.util.Scheduler;
 import com.heaven7.java.base.util.ThreadProxy;
 import com.heaven7.java.message.protocol.Message;
+import com.heaven7.java.message.protocol.MessageConfigManager;
 import com.heaven7.java.message.protocol.OkMessage;
 import com.heaven7.java.pc.ProductContext;
 import com.heaven7.java.pc.Transformers;
@@ -22,8 +23,7 @@ import java.io.OutputStream;
 import static com.heaven7.java.cs.communication.CSConstant.TYPE_RSA_SINGLE;
 
 /**
- * 1, 建立连接 2, cs认证 ->返回一个token 3. 开启tick. 4, ...wait for break. 5, 重连机制
- *
+ * @author heaven7
  */
 public final class ClientCommunicator implements Disposable, ProductContext, IMessageSender {
 
@@ -35,10 +35,6 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
         InputStream getInputStream() throws IOException;
     }
 
-    public interface Callback{
-        void handleMessage(IMessageSender sender, Message<Object> obj);
-    }
-
     private static final CSThreadFactory sFACTORY = new CSThreadFactory("ClientCommunicator");
     private PipeProducer<Message<Object>> mOutProducer;
     private PMS<Message<Object>,Message<Object>> mOutService;
@@ -47,15 +43,15 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
 
     private final long mReadSleepTime;
     private final Connector mConnector;
-    private final Callback mCallback;
+    private final MessageHandler mHandler;
 
-    public ClientCommunicator(Connector mConnector, Callback mCallback, long readSleepTime) {
-        this(mConnector, mCallback, readSleepTime, 8);
+    public ClientCommunicator(Connector mConnector, MessageHandler handler, long readSleepTime) {
+        this(mConnector, handler, readSleepTime, 8);
     }
 
-    private ClientCommunicator(Connector mConnector, Callback mCallback, long readSleepTime, int queueSize) {
+    private ClientCommunicator(Connector mConnector, MessageHandler handler, long readSleepTime, int queueSize) {
         this.mConnector = mConnector;
-        this.mCallback = mCallback;
+        this.mHandler = handler;
         this.mReadSleepTime = readSleepTime;
         this.mOutProducer = new PipeProducer<>(queueSize);
     }
@@ -171,7 +167,7 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
         }
         @Override
         public void run() {
-            communicator.mCallback.handleMessage(communicator, msg);
+            communicator.mHandler.handleMessage(communicator, msg, MessageConfigManager.getVersion());
         }
     }
 
