@@ -32,4 +32,12 @@ public class BaseEntity {
     public void setVersion(float version) {
         this.version = version;
     }
+
+    @Override
+    public String toString() {
+        return "BaseEntity{" +
+                "token='" + token + '\'' +
+                ", version=" + version +
+                '}';
+    }
 }

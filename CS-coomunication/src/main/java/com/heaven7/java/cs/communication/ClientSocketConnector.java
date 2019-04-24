@@ -40,26 +40,4 @@ public class ClientSocketConnector implements ClientCommunicator.Connector {
     public InputStream getInputStream()throws IOException {
         return mSocket.getInputStream();
     }
-
-    public interface HostDelegate{
-        String getHostName();
-        int getHostPort();
-    }
-
-    public static class SimpleHost implements HostDelegate{
-        private String name;
-        private int port;
-        public SimpleHost(String name, int port) {
-            this.name = name;
-            this.port = port;
-        }
-        @Override
-        public String getHostName() {
-            return name;
-        }
-        @Override
-        public int getHostPort() {
-            return port;
-        }
-    }
 }

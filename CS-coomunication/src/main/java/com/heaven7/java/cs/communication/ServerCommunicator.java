@@ -93,6 +93,13 @@ public class ServerCommunicator implements Disposable {
     private final MessageHandler nHandler;
     private final Callback mInternalCallback;
 
+    /**
+     * create server communicator
+     * @param tickTimeSpace the max tick time space in mills
+     * @param mInternalCallback the internal callback of server
+     * @param connector the connector
+     * @param handler the message handler
+     */
     public ServerCommunicator(long tickTimeSpace, Callback mInternalCallback, Connector connector, MessageHandler handler) {
         this.nHandler = handler;
         this.mProxy = ThreadProxy.create(sFACTORY);
