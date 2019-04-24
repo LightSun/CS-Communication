@@ -88,6 +88,6 @@ public final class SampleSocketClient implements MessageHandler{
                 mCommunicator.sendMessage(msg);
                 mMonitor.onTick();
             }
-        }, 30, 30, TimeUnit.SECONDS);
+        }, 5, 5, TimeUnit.SECONDS);
     }
 }

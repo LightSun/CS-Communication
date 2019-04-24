@@ -1,5 +1,6 @@
-package com.heaven7.java.cs.communication;
+package com.heaven7.java.cs.communication.sample;
 
+import com.heaven7.java.cs.communication.CSConstant;
 import com.heaven7.java.message.protocol.MessageConfig;
 import com.heaven7.java.message.protocol.MessageConfigManager;
 import com.heaven7.java.message.protocol.policy.DefaultRSASegmentationPolicy;
@@ -11,7 +12,7 @@ import com.heaven7.java.message.protocol.signature.MD5SaltSignature;
  * the simple class to init message configuration.
  * @author heaven7
  */
-public final class SimpleInitializer {
+public final class SampleInitializer {
 
     public static void initialize(String rsaKey, boolean priKey){
         MessageConfig config = MessageConfig.newConfig();
