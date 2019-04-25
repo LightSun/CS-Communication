@@ -1,5 +1,6 @@
 apply plugin: 'java'
-
+/*apply plugin: 'application'
+mainClassName = 'com.heaven7.java.cs.communication.util.sample.Launcher'*/
 
 group 'com.heaven7.java.cs.communication'
 version '1.0-beta'
@@ -20,4 +21,36 @@ dependencies {
 
     compile "com.auth0:java-jwt:3.2.0"
     compile "io.jsonwebtoken:jjwt:0.7.0"
+}
+
+task copyJars(type:Copy) {
+    from configurations.runtime
+    //into 'build/depend_jars'
+    into 'build/libs'
+}
+
+task includeClassJar(type: Jar) {
+    archiveName = 'all.jar'
+    from('build/classes/java/main')
+    from('build/classes/java/test')
+    destinationDir = file('build/libs')
+    manifest {
+        attributes "Main-Class": "com.heaven7.java.cs.communication.sample.Launcher"
+    }
+}
+
+jar {
+    manifestContentCharset 'utf-8'
+    metadataCharset 'utf-8'
+    manifest {
+        attributes "Main-Class": "com.heaven7.java.cs.communication.sample.Launcher"
+    }
+    if (project.hasProperty("allInOne")) {
+        from {
+            configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+        }
+    }else {
+        dependsOn copyJars
+    }
+    dependsOn includeClassJar
 }

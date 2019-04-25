@@ -6,7 +6,7 @@ public interface ClientMonitor {
 
     void onStart(boolean result);
     void onEnd();
-    void onSendLogin(Message<?> out);
+    void onSendMessageToRemote(Message<?> out);
     void onReceiveMessage(Message<?> inMsg);
     void onTick();
 }

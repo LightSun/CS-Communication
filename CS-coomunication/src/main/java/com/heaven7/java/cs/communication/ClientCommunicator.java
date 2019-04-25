@@ -44,6 +44,7 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
     private final long mReadSleepTime;
     private final Connector mConnector;
     private final MessageHandler mHandler;
+    private ClientMonitor mMonitor;
 
     public ClientCommunicator(Connector mConnector, MessageHandler handler, long readSleepTime) {
         this(mConnector, handler, readSleepTime, 8);
@@ -54,6 +55,13 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
         this.mHandler = handler;
         this.mReadSleepTime = readSleepTime;
         this.mOutProducer = new PipeProducer<>(queueSize);
+    }
+
+    public ClientMonitor getClientMonitor(){
+        return mMonitor;
+    }
+    public void setClientMonitor(ClientMonitor mMonitor) {
+        this.mMonitor = mMonitor;
     }
 
     public boolean start() throws IOException{
@@ -67,17 +75,20 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
                         .consumer(new OutputStreamConsumer(mConnector.getOutputStream()))
                         .build();
         if(!mOutService.start()){
+            mMonitor.onStart(false);
             return false;
         }
         //start loop read
         mInHelper = new InputStreamHelper(this, mConnector.getInputStream(), mReadSleepTime);
         mInHelper.start();
+        mMonitor.onStart(true);
         return true;
     }
     @Override
     public boolean sendMessage(Message<Object> msg, float version) {
         if(mOutService != null){
             mOutProducer.getPipe().addProduct(msg);
+            mMonitor.onSendMessageToRemote(msg);
             return true;
         }
         return false;
@@ -87,6 +98,7 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
     public boolean sendMessage(Message<Object> msg) {
         if(mOutService != null){
             mOutProducer.getPipe().addProduct(msg);
+            mMonitor.onSendMessageToRemote(msg);
             return true;
         }
         return false;
@@ -107,6 +119,7 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
             mOutService.dispose();
             mOutService = null;
         }
+        mMonitor.onEnd();
     }
 
     private static class InputStreamHelper implements Disposable, Runnable {
@@ -149,6 +162,7 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
                             }
                         }
                     }else {
+                        communicator.mMonitor.onReceiveMessage(msg);
                         worker.schedule(new InRunner(communicator, msg));
                     }
                 }

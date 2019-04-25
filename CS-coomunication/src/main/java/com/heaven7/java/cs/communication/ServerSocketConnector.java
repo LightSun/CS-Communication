@@ -44,6 +44,8 @@ public class ServerSocketConnector implements ServerCommunicator.Connector {
             try{
                 while (server != null){
                     Socket socket = server.accept();
+                    socket.setKeepAlive(true);
+                    socket.setTcpNoDelay(true);
                     //handle client too many ?
                     reporter.reportNewConnection(new SocketClientConnection(socket));
                 }

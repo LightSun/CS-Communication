@@ -1,6 +1,7 @@
 package com.heaven7.java.cs.communication.sample;
 
 import com.heaven7.java.cs.communication.*;
+import com.heaven7.java.cs.communication.impl.SimpleServerMonitor;
 import com.heaven7.java.message.protocol.Message;
 
 import java.io.IOException;
@@ -12,6 +13,7 @@ public final class SampleSocketServer implements MessageHandler {
     public SampleSocketServer(int port) {
         this.mCommunicator = new ServerCommunicator(3600*1000, new SimpleServerCallback(),
                 new ServerSocketConnector(port), this);
+        mCommunicator.setServerMonitor(new SimpleServerMonitor());
     }
 
     public void start(){

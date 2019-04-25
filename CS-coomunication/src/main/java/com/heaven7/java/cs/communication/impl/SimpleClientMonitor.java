@@ -1,10 +1,13 @@
-package com.heaven7.java.cs.communication.sample;
+package com.heaven7.java.cs.communication.impl;
 
 import com.heaven7.java.base.util.DefaultPrinter;
 import com.heaven7.java.cs.communication.ClientMonitor;
 import com.heaven7.java.message.protocol.Message;
 
-public class SampleClientMonitor implements ClientMonitor {
+import static com.heaven7.java.cs.communication.impl.MessageLog.getStateString;
+import static com.heaven7.java.cs.communication.impl.MessageLog.getTypeString;
+
+public class SimpleClientMonitor implements ClientMonitor {
 
     private static final String TAG = "SampleClientMonitor";
 
@@ -19,8 +22,8 @@ public class SampleClientMonitor implements ClientMonitor {
     }
 
     @Override
-    public void onSendLogin(Message<?> out) {
-        DefaultPrinter.getDefault().debug(TAG, "onSendLogin", "client sended login message." );
+    public void onSendMessageToRemote(Message<?> out) {
+        DefaultPrinter.getDefault().debug(TAG, "onSendMessageToRemote", "client  send message."  + getTypeString(out.getType()));
     }
 
     @Override
@@ -34,32 +37,5 @@ public class SampleClientMonitor implements ClientMonitor {
     @Override
     public void onTick() {
         DefaultPrinter.getDefault().debug(TAG, "onTick", "time is " + System.currentTimeMillis());
-    }
-
-    private static String getStateString(int state) {
-        switch (state){
-            case Message.SUCCESS:
-                return "SUCCESS";
-            case Message.FAILED:
-                return "FAILED";
-        }
-        return null;
-    }
-
-    private static String getTypeString(int type) {
-        switch (type){
-            case Message.LOGIN:
-                return "LOGIN";
-
-            case Message.LOGOUT:
-                return "LOGOUT";
-
-            case Message.TICK:
-                return "TICK";
-
-            case Message.COMMON:
-                return "COMMON";
-        }
-        return null;
     }
 }

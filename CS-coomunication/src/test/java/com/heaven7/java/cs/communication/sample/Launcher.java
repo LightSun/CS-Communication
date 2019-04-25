@@ -18,8 +18,13 @@ public final class Launcher {
         //params: isClient=true,rsaKey=xxx,host=xxx,port=xxx,
         Map<String, String> params = new HashMap<>();
         for (String arg : args){
-            String[] strs = arg.split("=");
-            params.put(strs[0], strs[1]);
+            if(!arg.contains("=")){
+                continue;
+            }
+            int index = arg.indexOf("=");
+            String key = arg.substring(0, index);
+            String value = arg.substring(index + 1);
+            params.put(key, value);
         }
         boolean isClient = Boolean.valueOf(params.get(KEY_IS_CLIENT));
         int port = Integer.valueOf(params.get(KEY_PORT));

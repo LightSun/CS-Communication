@@ -93,6 +93,8 @@ public class ServerCommunicator implements Disposable {
     private final MessageHandler nHandler;
     private final Callback mInternalCallback;
 
+    private ServerMonitor mMonitor;
+
     /**
      * create server communicator
      * @param tickTimeSpace the max tick time space in mills
@@ -108,6 +110,13 @@ public class ServerCommunicator implements Disposable {
         this.mMaxTickTimeSpace = tickTimeSpace;
     }
 
+    public ServerMonitor getServerMonitor() {
+        return mMonitor;
+    }
+    public void setServerMonitor(ServerMonitor mMonitor) {
+        this.mMonitor = mMonitor;
+    }
+
     /**
      * start connect
      * @throws IOException if connect occurs.
@@ -118,6 +127,7 @@ public class ServerCommunicator implements Disposable {
             mLooper.start();
         }
         mConnector.connect(mProxy, mReporter);
+        mMonitor.onStart();
     }
 
     /**
@@ -128,8 +138,10 @@ public class ServerCommunicator implements Disposable {
     public boolean sendBroadcast(Message<Object> msg){
         if(mLooper != null){
             mLooper.sendBroadcast(msg);
+            mMonitor.onSendBroadcast(msg, null);
             return true;
         }
+        mMonitor.onSendBroadcastFailed(msg);
         return false;
     }
 
@@ -142,8 +154,10 @@ public class ServerCommunicator implements Disposable {
     public boolean sendBroadcast(Message<Object> msg, List<String> clients){
         if(mLooper != null){
             mLooper.sendBroadcast(msg, clients);
+            mMonitor.onSendBroadcast(msg, clients);
             return true;
         }
+        mMonitor.onSendBroadcastFailed(msg);
         return false;
     }
 
@@ -170,6 +184,7 @@ public class ServerCommunicator implements Disposable {
         mConnectCount.getAndSet(0);
         //TODO server disconnect by exception. handle it ?
         mClientInfoMap.clear();
+        mMonitor.onEnd();
     }
 
     private class Reporter0 implements ServerCommunicator.Reporter {
@@ -184,9 +199,11 @@ public class ServerCommunicator implements Disposable {
             mConnectCount.incrementAndGet();
             try {
                 mLooper.addClientConnection(cc);
+                mMonitor.onNewClient(cc.getRemoteUniqueKey());
             } catch (IOException e) {
                 mClientInfoMap.remove(cc.getRemoteUniqueKey());
                 mConnectCount.decrementAndGet();
+                mMonitor.onAddClientError(cc.getRemoteUniqueKey(), e);
                 e.printStackTrace();
             }
         }
@@ -222,9 +239,11 @@ public class ServerCommunicator implements Disposable {
                 for (ClientConnectionWrapper conn : list) {
                     String uniqueKey = conn.getRemoteUniqueKey();
                     ClientInfo clientInfo = mClientInfoMap.get(uniqueKey);
+                    mMonitor.onStartReadMessage(uniqueKey, clientInfo.token);
 
                     boolean removeClient = false;
                     if (conn.isAlive()) {
+                        //blocked.
                         Message<?> msg = conn.readMessage();
                         if (msg != null) {
                             if (verifyMessage(conn, clientInfo, msg)) continue;
@@ -240,6 +259,7 @@ public class ServerCommunicator implements Disposable {
                         removeClient = true;
                     }
                     if (removeClient) {
+                        mMonitor.onRemoveClient(uniqueKey, clientInfo.token);
                         connections.remove(conn);
                         mClientInfoMap.remove(uniqueKey);
                         conn.close();
@@ -269,16 +289,18 @@ public class ServerCommunicator implements Disposable {
                                 mInternalCallback.generateToken(entity.getToken(), uniqueKey);
                         clientInfo.lastTickTime = System.currentTimeMillis();
                         conn.permit = true;
+                        //monitor
+                        mMonitor.onValidateTempTokenSuccess(entity.getToken(), clientInfo.token);
                         // gen token and response.
                         entity.setToken(clientInfo.token);
                         entity.setVersion(MessageConfigManager.getVersion());
                         outMessage =
                                 Message.create(msg.getType(), Message.SUCCESS, SUCCESS, entity);
-
                     } else {
                         outMessage =
                                 Message.create(msg.getType(), Message.FAILED, INVALID_TOKEN, null);
                         removeClient = true;
+                        mMonitor.onValidateTempTokenFailed(entity.getToken());
                     }
                     break;
 
@@ -286,16 +308,19 @@ public class ServerCommunicator implements Disposable {
                     {
                         clientInfo.lastTickTime = System.currentTimeMillis();
                         outMessage = Message.create(msg.getType(), Message.SUCCESS, SUCCESS, null);
+                        mMonitor.onTick(entity.getToken());
                     }
                     break;
 
                 case Message.LOGOUT:
+                    mMonitor.onLogout(entity.getToken());
                     outMessage = Message.create(msg.getType(), Message.SUCCESS, SUCCESS, null);
                     removeClient = true;
                     break;
 
                 default:
                     {
+                        mMonitor.onMessageReceived(msg);
                         clientInfo.lastTickTime = System.currentTimeMillis();
                     }
             }
@@ -328,8 +353,10 @@ public class ServerCommunicator implements Disposable {
                     outMessage =
                             Message.create(
                                     msg.getType(), Message.FAILED, YOU_SHOULD_LOGIN_FIRST, null);
+                    mMonitor.onNotLogin(conn.getRemoteUniqueKey());
                 } else if (!clientInfo.token.equals(entity.getToken())) {
                     outMessage = Message.create(msg.getType(), Message.FAILED, INVALID_TOKEN, null);
+                    mMonitor.onVerifyTokenFailed(clientInfo.token, entity.getToken());
                 }
             }
             if (outMessage != null) {
