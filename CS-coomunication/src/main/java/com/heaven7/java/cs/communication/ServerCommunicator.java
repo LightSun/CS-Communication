@@ -8,9 +8,7 @@ import com.heaven7.java.message.protocol.Message;
 import com.heaven7.java.message.protocol.MessageConfigManager;
 import com.heaven7.java.message.protocol.OkMessage;
 import com.heaven7.java.pc.schedulers.Schedulers;
-import okio.BufferedSink;
-import okio.BufferedSource;
-import okio.Okio;
+import okio.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,6 +16,7 @@ import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -70,8 +69,8 @@ public class ServerCommunicator implements Disposable {
     }
 
     public interface ClientConnection {
-        OutputStream getOutputStream() throws IOException;
-        InputStream getInputStream() throws IOException;
+        Sink getSink() throws IOException;
+        Source getSource() throws IOException;
 
         String getRemoteUniqueKey();
         boolean isAlive();
@@ -423,8 +422,8 @@ public class ServerCommunicator implements Disposable {
 
         public ClientConnectionWrapper(ClientConnection connection) throws IOException {
             this.connection = connection;
-            this.source = Okio.buffer(Okio.source(connection.getInputStream()));
-            this.sink = Okio.buffer(Okio.sink(connection.getOutputStream()));
+            this.source = Okio.buffer(connection.getSource());
+            this.sink = Okio.buffer(connection.getSink());
         }
 
         public boolean isAlive() {
@@ -436,6 +435,9 @@ public class ServerCommunicator implements Disposable {
         }
 
         public Message<?> readMessage() {
+            Timeout timeout = source.timeout();
+            timeout.clearDeadline();
+            timeout.deadline(5000, TimeUnit.MILLISECONDS);
             return OkMessage.readMessage(source);
         }
 

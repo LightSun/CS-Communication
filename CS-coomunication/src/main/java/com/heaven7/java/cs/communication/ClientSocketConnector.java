@@ -1,5 +1,9 @@
 package com.heaven7.java.cs.communication;
 
+import okio.Okio;
+import okio.Sink;
+import okio.Source;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,11 +37,11 @@ public class ClientSocketConnector implements ClientCommunicator.Connector {
     }
 
     @Override
-    public OutputStream getOutputStream() throws IOException {
-        return mSocket.getOutputStream();
+    public Sink getSink() throws IOException {
+        return Okio.sink(mSocket);
     }
     @Override
-    public InputStream getInputStream()throws IOException {
-        return mSocket.getInputStream();
+    public Source getSource() throws IOException {
+        return Okio.source(mSocket);
     }
 }

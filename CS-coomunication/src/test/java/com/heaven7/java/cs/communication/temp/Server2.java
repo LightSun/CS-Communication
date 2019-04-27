@@ -12,12 +12,14 @@ import com.heaven7.java.message.protocol.signature.MD5SaltSignature;
 import okio.BufferedSink;
 import okio.BufferedSource;
 import okio.Okio;
+import okio.Timeout;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.KeyPair;
 import java.util.Base64;
+import java.util.concurrent.TimeUnit;
 
 import static com.heaven7.java.cs.communication.CSConstant.TYPE_RSA_SINGLE;
 
@@ -45,13 +47,16 @@ public class Server2 {
 
             // takes input from the client socket
             //in = Okio.buffer(Okio.source(socket.getInputStream()));
-            out = Okio.buffer(Okio.sink(socket.getOutputStream()));
+            out = Okio.buffer(Okio.sink(socket));
             in = Okio.buffer(Okio.source(socket));
 
             String line = "";
 
             // reads message from client until "Over" is sent
+            Timeout timeout = in.timeout();
             while (!line.equals("Over")) {
+                timeout.clearDeadline();
+                timeout.deadline(5000, TimeUnit.MILLISECONDS);
                 Message<Object> message = OkMessage.readMessage(in);
                 System.out.println(message);
             }

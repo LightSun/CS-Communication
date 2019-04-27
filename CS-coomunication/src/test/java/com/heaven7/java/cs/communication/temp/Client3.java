@@ -1,9 +1,5 @@
 package com.heaven7.java.cs.communication.temp;
 
-import com.heaven7.java.cs.communication.CSConstant;
-import com.heaven7.java.cs.communication.entity.BaseEntity;
-import com.heaven7.java.message.protocol.Message;
-import com.heaven7.java.message.protocol.OkMessage;
 import okio.BufferedSink;
 import okio.BufferedSource;
 import okio.Okio;
@@ -11,17 +7,17 @@ import okio.Okio;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 
-public class Client2 {
+public class Client3 {
     // initialize socket and input output streams
     private Socket socket = null;
     private BufferedSource input = null;
     private BufferedSink out = null;
 
     // constructor to put ip address and port
-    public Client2(String address, int port) {
+    public Client3(String address, int port) {
         // establish a connection
-        Server2.initialize();
         try {
             socket = new Socket(address, port);
             System.out.println("Connected");
@@ -42,12 +38,11 @@ public class Client2 {
 
         // keep reading until "Over" is input
         while (!line.equals("Over")) {
-            BaseEntity entity = new BaseEntity();
-            entity.setToken("Hello Google");
-            entity.setVersion(1.0f);
-            OkMessage.writeMessage(out, Message.create(Message.LOGIN, "heaven7", entity), CSConstant.TYPE_RSA_SINGLE);
             try {
-                out.writeByte(-1);
+                String msg = "sdfdsfjdsfssssssssssssssss";
+                out.writeInt(43);
+                out.writeInt(msg.length());
+                out.write(msg.getBytes(StandardCharsets.UTF_8));
                 out.flush();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -72,6 +67,6 @@ public class Client2 {
     }
 
     public static void main(String args[]) {
-        Client2 client = new Client2("127.0.0.1", 5000);
+        Client3 client = new Client3("127.0.0.1", 5000);
     }
 }

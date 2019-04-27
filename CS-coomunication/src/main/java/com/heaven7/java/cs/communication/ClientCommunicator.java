@@ -12,13 +12,12 @@ import com.heaven7.java.pc.consumers.SimpleConsumer;
 import com.heaven7.java.pc.pm.PMS;
 import com.heaven7.java.pc.producers.PipeProducer;
 import com.heaven7.java.pc.schedulers.Schedulers;
-import okio.BufferedSink;
-import okio.BufferedSource;
-import okio.Okio;
+import okio.*;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.TimeUnit;
 
 import static com.heaven7.java.cs.communication.CSConstant.TYPE_RSA_SINGLE;
 
@@ -31,8 +30,8 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
         void connect() throws IOException;
         void disconnect() throws IOException;
 
-        OutputStream getOutputStream() throws IOException;
-        InputStream getInputStream() throws IOException;
+        Sink getSink() throws IOException;
+        Source getSource() throws IOException;
     }
 
     private static final CSThreadFactory sFACTORY = new CSThreadFactory("ClientCommunicator");
@@ -72,14 +71,14 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
                         .scheduler(Schedulers.io())
                         .producer(mOutProducer)
                         .transformer(Transformers.unchangeTransformer())
-                        .consumer(new OutputStreamConsumer(mConnector.getOutputStream()))
+                        .consumer(new OutputStreamConsumer(mConnector.getSink()))
                         .build();
         if(!mOutService.start()){
             mMonitor.onStart(false);
             return false;
         }
         //start loop read
-        mInHelper = new InputStreamHelper(this, mConnector.getInputStream(), mReadSleepTime);
+        mInHelper = new InputStreamHelper(this, mConnector.getSource(), mReadSleepTime);
         mInHelper.start();
         mMonitor.onStart(true);
         return true;
@@ -131,10 +130,10 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
 
         private ClientCommunicator communicator;
 
-        public InputStreamHelper(ClientCommunicator communicator,InputStream in, long sleepTime) {
+        public InputStreamHelper(ClientCommunicator communicator,Source in, long sleepTime) {
             this.communicator = communicator;
             this.sleepTime = sleepTime;
-            this.source = Okio.buffer(Okio.source(in));
+            this.source = Okio.buffer(in);
             this.proxy = ThreadProxy.create(sFACTORY);
         }
         public void start(){
@@ -152,7 +151,10 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
         public void run() {
             try{
                 Scheduler.Worker worker = Schedulers.io().newWorker();
+                Timeout timeout = source.timeout();
                 while (!disposed){
+                    timeout.clearDeadline();
+                    timeout.deadline(5000, TimeUnit.MILLISECONDS);
                     final Message<Object> msg = OkMessage.readMessage(source);
                     if(msg == null){
                         //wait if need. or else loop until dispose
@@ -188,8 +190,8 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
     private static class OutputStreamConsumer extends SimpleConsumer<Message<Object>> {
         private final BufferedSink sink;
 
-        public OutputStreamConsumer(OutputStream out) {
-            this.sink = Okio.buffer(Okio.sink(out));
+        public OutputStreamConsumer(Sink out) {
+            this.sink = Okio.buffer(out);
         }
         @Override
         public void onConsume(Message<Object> obj, Runnable next) {
