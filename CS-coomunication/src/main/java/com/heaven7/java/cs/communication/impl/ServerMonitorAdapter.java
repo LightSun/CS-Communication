@@ -88,4 +88,14 @@ public class ServerMonitorAdapter implements ServerMonitor {
     public void onReadException(String remoteId, String token, Exception e) {
 
     }
+
+    @Override
+    public void onBlockingEnd(String remoteId, String token) {
+
+    }
+
+    @Override
+    public void onBlockingStart(String remoteId) {
+
+    }
 }

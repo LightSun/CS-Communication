@@ -27,4 +27,7 @@ public interface ServerMonitor {
     void onRemoveClient(String remoteId, String token);
 
     void onReadException(String remoteId, String token, Exception e);
+
+    void onBlockingEnd(String remoteId, String token);
+    void onBlockingStart(String remoteId);
 }

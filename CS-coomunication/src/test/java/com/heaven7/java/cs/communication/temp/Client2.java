@@ -42,6 +42,11 @@ public class Client2 {
 
         // keep reading until "Over" is input
         while (!line.equals("Over")) {
+            try {
+                Thread.sleep(8000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             BaseEntity entity = new BaseEntity();
             entity.setToken("Hello Google");
             entity.setVersion(1.0f);

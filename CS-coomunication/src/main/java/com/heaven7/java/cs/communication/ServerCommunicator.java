@@ -24,7 +24,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.heaven7.java.cs.communication.CSConstant.*;
 
-/** @author heaven7 */
+/**
+ * the server communicator which can use blocking or non-blocking mode. by calling {@linkplain #setBlockingMode(boolean)}.
+ * that means for socket you should use blocking mode.
+ * @author heaven7
+ */
 public class ServerCommunicator implements Disposable {
 
     public interface Callback {
@@ -86,7 +90,7 @@ public class ServerCommunicator implements Disposable {
     private final AtomicInteger mConnectCount = new AtomicInteger(0);
     private final Reporter0 mReporter = new Reporter0();
     private final ThreadProxy mProxy;
-    private Looper mLooper;
+    private final Looper mLooper = new Looper();
 
     private final long mMaxTickTimeSpace;
     private final Connector mConnector;
@@ -94,6 +98,7 @@ public class ServerCommunicator implements Disposable {
     private final Callback mInternalCallback;
 
     private ServerMonitor mMonitor;
+    private boolean mBlockingMode = true;
 
     /**
      * create server communicator
@@ -110,6 +115,22 @@ public class ServerCommunicator implements Disposable {
         this.mMaxTickTimeSpace = tickTimeSpace;
     }
 
+    /**
+     * indicate the work mode is blocking or not.
+     * @return true if it is blocking mode
+     */
+    public boolean isBlockingMode() {
+        return mBlockingMode;
+    }
+
+    /**
+     * set is blocking mode or not
+     * @param blockingMode true if is blocking mode
+     */
+    public void setBlockingMode(boolean blockingMode) {
+        this.mBlockingMode = blockingMode;
+    }
+
     public ServerMonitor getServerMonitor() {
         return mMonitor;
     }
@@ -122,10 +143,7 @@ public class ServerCommunicator implements Disposable {
      * @throws IOException if connect occurs.
      */
     public void start() throws IOException {
-        if(mLooper == null){
-            mLooper = new Looper();
-            mLooper.start();
-        }
+        mLooper.start();
         mConnector.connect(mProxy, mReporter);
         mMonitor.onStart();
     }
@@ -171,10 +189,7 @@ public class ServerCommunicator implements Disposable {
 
     @Override
     public void dispose() {
-        if(mLooper != null){
-            mLooper.dispose();
-            mLooper = null;
-        }
+        mLooper.dispose();
         try {
             mConnector.disconnect();
         } catch (IOException e) {
@@ -216,38 +231,44 @@ public class ServerCommunicator implements Disposable {
         long lastTickTime;
     }
 
-    private class Looper implements Disposable, Runnable {
-        private final ThreadProxy mProxy;
+    private class Looper implements Disposable,Runnable {
         private final CopyOnWriteArrayList<ClientConnectionWrapper> connections =
                 new CopyOnWriteArrayList<>();
-        private final AtomicBoolean mClosed = new AtomicBoolean(false);
+        private final AtomicBoolean mClosed = new AtomicBoolean(true);
+        private final ThreadProxy mProxy_looper = ThreadProxy.create(sFACTORY) ;
 
         public Looper() {
-            this.mProxy = ThreadProxy.create(sFACTORY);
         }
 
         public void start() {
-            mProxy.start(this);
+            if(mClosed.compareAndSet(true, false)){
+                if(!mBlockingMode){
+                    mProxy_looper.start(this);
+                }
+            }
         }
 
         @Override
         public void run() {
             List<ClientConnectionWrapper> list = new ArrayList<>();
+            //Scheduler.Worker worker = Schedulers.io().newWorker();
             while (!mClosed.get()) {
                 list.addAll(connections);
                 //handle every connection in different threads. (because socket is blocking)
                 for (final ClientConnectionWrapper conn : list) {
-
-                    //TODO handle connection on isolute thread?
                     handleClientConnection(conn);
                 }
                 list.clear();
             }
         }
-
-        void handleClientConnection(ClientConnectionWrapper conn){
+        /**
+         *  handle client connection. if return true means the client connection will be closed.
+         * @param conn the connection wrapper
+         * @return true if the connection will be closed.
+         */
+        boolean handleClientConnection(ClientConnectionWrapper conn){
             if(!conn.isReadyToRead()){
-                return;
+                return false;
             }
             String uniqueKey = conn.getRemoteUniqueKey();
             ClientInfo clientInfo = mClientInfoMap.get(uniqueKey);
@@ -267,7 +288,7 @@ public class ServerCommunicator implements Disposable {
                 }
                 if (msg != null) {
                     if (verifyMessage(conn, clientInfo, msg))
-                        return;
+                        return false;
                     removeClient = handleMessage(conn, uniqueKey, clientInfo, msg);
                 } else {
                     if (!removeClient && (System.currentTimeMillis() - clientInfo.lastTickTime)
@@ -291,7 +312,9 @@ public class ServerCommunicator implements Disposable {
                         conn.close();
                     }
                 }, 30, TimeUnit.SECONDS);
+                return true;
             }
+            return false;
         }
 
         // handle message and return true if need remove client.
@@ -390,22 +413,56 @@ public class ServerCommunicator implements Disposable {
             }
             return outMessage != null;
         }
-
         @Override
         public void dispose() {
             if (mClosed.compareAndSet(false, true)) {
-                mProxy.dispose();
+                for (ClientConnectionWrapper  conn: connections){
+                    conn.close();
+                }
                 connections.clear();
+                mProxy_looper.dispose();
             }
         }
+
         public void addClientConnection(ClientConnection cc) throws IOException {
             if(cc.isAlive()){
-                connections.add(new ClientConnectionWrapper(cc));
+                final ClientConnectionWrapper wrapper = new ClientConnectionWrapper(cc);
+                connections.add(wrapper);
+
+                //for blocking mode . we need add task to pool. or else the extra thread will loop the 'wrapper'.
+                if(mBlockingMode){
+                    final String remoteId = wrapper.getRemoteUniqueKey();
+                    mMonitor.onBlockingStart(remoteId);
+
+                    Schedulers.io().newWorker().schedule(new Runnable() {
+                        @Override
+                        public void run() {
+                            boolean end = true;
+                            if (!mClosed.get() && !handleClientConnection(wrapper)){
+                                end = false;
+                            }
+                            if(end){
+                                ClientInfo info = mClientInfoMap.get(remoteId);
+                                mMonitor.onBlockingEnd(remoteId, info != null ? info.token: null);
+                            }else {
+                                Schedulers.io().newWorker().schedule(this);
+                            }
+                            //below can't run ok
+                          /*  while (!mClosed.get()){
+                                if(handleClientConnection(wrapper)){
+                                    break;
+                                }
+                            }
+                            System.out.println("connection >>> end...");*/
+                        }
+                    });
+                }
             }else {
                 DefaultPrinter.getDefault().error(TAG, "addClientConnection",
                         "client connection is not alive. key = " + cc.getRemoteUniqueKey());
             }
         }
+
         public void sendBroadcast(Message<Object> msg) {
             final List<ClientConnectionWrapper> clients = new ArrayList<>(connections);
             final HashMap<String, ClientInfo> map = new HashMap<>(mClientInfoMap);
@@ -445,7 +502,6 @@ public class ServerCommunicator implements Disposable {
         final BufferedSink sink;
         int errorCount;
         boolean permit;
-        boolean firstTime = true;
 
         public ClientConnectionWrapper(ClientConnection connection) throws IOException {
             this.connection = connection;
@@ -492,19 +548,7 @@ public class ServerCommunicator implements Disposable {
             return ++errorCount;
         }
         public boolean isReadyToRead() {
-            boolean result = connection.isReadyToRead();
-            if(firstTime){
-                return result;
-            }else {
-                firstTime = false;
-                try {
-                 //   BufferedSource peek = source.peek();
-                    return result && source.request(8);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    return false;
-                }
-            }
+            return connection.isReadyToRead();
         }
     }
 

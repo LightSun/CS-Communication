@@ -94,4 +94,13 @@ public class SimpleServerMonitor implements ServerMonitor {
       /*  DefaultPrinter.getDefault().warn(TAG, "onReadException", "remoteId = " + remoteId
                 + ", token = " + token + " , exception is " + Throwables.getStackTraceAsString(e));*/
     }
+
+    @Override
+    public void onBlockingEnd(String remoteId, String token) {
+        DefaultPrinter.getDefault().debug(TAG, "onBlockingEnd", "remoteId = " + remoteId + ", token = " + token);
+    }
+    @Override
+    public void onBlockingStart(String remoteId) {
+        DefaultPrinter.getDefault().debug(TAG, "onBlockingStart", "remoteId = " + remoteId);
+    }
 }

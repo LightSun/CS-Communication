@@ -54,8 +54,16 @@ public class Server2 {
             while (!line.equals("Over")) {
                /* timeout.clearDeadline();
                 timeout.deadline(5000, TimeUnit.MILLISECONDS);*/
-                Message<Object> message = OkMessage.readMessage(in);
-                System.out.println(message);
+                if(OkMessage.isReadyToRead(in)){
+                    Message<Object> message = OkMessage.readMessageWithoutMagic(in);
+                    System.out.println(message);
+                }else {
+                    System.out.println("data not prepared.");
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                    }
+                }
             }
             System.out.println("Closing connection");
 
