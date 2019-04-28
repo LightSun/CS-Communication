@@ -46,7 +46,7 @@ public final class SampleSocketClient implements MessageHandler{
     /**
      * cancel client by send logout cmd.
      */
-    public void cancel(){
+    public void logout(){
         Message<Object> msg = Message.create(Message.LOGOUT, null, mCoreEntity);
         mCommunicator.sendMessage(msg);
     }

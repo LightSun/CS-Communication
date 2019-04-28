@@ -9,4 +9,5 @@ public interface ClientMonitor {
     void onSendMessageToRemote(Message<?> out);
     void onReceiveMessage(Message<?> inMsg);
     void onTick();
+    void onReadException(Exception e);
 }

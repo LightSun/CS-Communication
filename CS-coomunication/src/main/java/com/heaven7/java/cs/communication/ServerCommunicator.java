@@ -2,6 +2,7 @@ package com.heaven7.java.cs.communication;
 
 import com.heaven7.java.base.util.DefaultPrinter;
 import com.heaven7.java.base.util.Disposable;
+import com.heaven7.java.base.util.Scheduler;
 import com.heaven7.java.base.util.ThreadProxy;
 import com.heaven7.java.cs.communication.entity.BaseEntity;
 import com.heaven7.java.message.protocol.Message;
@@ -11,18 +12,17 @@ import com.heaven7.java.pc.schedulers.Schedulers;
 import okio.*;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.heaven7.java.cs.communication.CSConstant.INVALID_TOKEN;
-import static com.heaven7.java.cs.communication.CSConstant.SUCCESS;
-import static com.heaven7.java.cs.communication.CSConstant.YOU_SHOULD_LOGIN_FIRST;
+import static com.heaven7.java.cs.communication.CSConstant.*;
 
 /** @author heaven7 */
 public class ServerCommunicator implements Disposable {
@@ -232,40 +232,60 @@ public class ServerCommunicator implements Disposable {
         @Override
         public void run() {
             List<ClientConnectionWrapper> list = new ArrayList<>();
+            Scheduler.Worker worker = Schedulers.io().newWorker();
             while (!mClosed.get()) {
                 list.addAll(connections);
-
-                for (ClientConnectionWrapper conn : list) {
-                    String uniqueKey = conn.getRemoteUniqueKey();
-                    ClientInfo clientInfo = mClientInfoMap.get(uniqueKey);
-                    mMonitor.onStartReadMessage(uniqueKey, clientInfo.token);
-
-                    boolean removeClient = false;
-                    if (conn.isAlive()) {
-                        //blocked.
-                        Message<?> msg = conn.readMessage();
-                        if (msg != null) {
-                            if (verifyMessage(conn, clientInfo, msg)) continue;
-                            removeClient = handleMessage(conn, uniqueKey, clientInfo, msg);
-                        } else {
-                            if ((System.currentTimeMillis() - clientInfo.lastTickTime)
-                                    >= mMaxTickTimeSpace) {
-                                removeClient = true;
-                                mInternalCallback.onTickTimeTimeout(clientInfo.token);
-                            }
-                        }
-                    } else {
-                        removeClient = true;
-                    }
-                    if (removeClient) {
-                        mMonitor.onRemoveClient(uniqueKey, clientInfo.token);
-                        connections.remove(conn);
-                        mClientInfoMap.remove(uniqueKey);
-                        conn.close();
-                        mConnectCount.decrementAndGet();
-                    }
+                //handle every connection in different threads. (because socket is blocking)
+                for (final ClientConnectionWrapper conn : list) {
+                    worker.schedule(() -> handleClientConnection(conn));
                 }
                 list.clear();
+            }
+        }
+
+        void handleClientConnection(ClientConnectionWrapper conn){
+            String uniqueKey = conn.getRemoteUniqueKey();
+            ClientInfo clientInfo = mClientInfoMap.get(uniqueKey);
+            boolean removeClient = false;
+            if (conn.isAlive()) {
+                mMonitor.onStartReadMessage(uniqueKey, clientInfo.token);
+                Message<?> msg = null;
+                try{
+                    msg = conn.readMessage();
+                }catch (Exception e){
+                    if(!mClosed.get()){
+                        mMonitor.onReadException(uniqueKey, clientInfo.token,  e);
+                        if(conn.increaseReadErrorCount() >= 3){
+                            removeClient = true;
+                        }
+                    }
+                }
+                if (msg != null) {
+                    if (verifyMessage(conn, clientInfo, msg))
+                        return;
+                    removeClient = handleMessage(conn, uniqueKey, clientInfo, msg);
+                } else {
+                    if (!removeClient && (System.currentTimeMillis() - clientInfo.lastTickTime)
+                            >= mMaxTickTimeSpace) {
+                        removeClient = true;
+                        mInternalCallback.onTickTimeTimeout(clientInfo.token);
+                    }
+                }
+            } else {
+                removeClient = true;
+            }
+            if (removeClient) {
+                mMonitor.onRemoveClient(uniqueKey, clientInfo.token);
+                connections.remove(conn);
+                mClientInfoMap.remove(uniqueKey);
+                //give a chance that client can do some work of clean.
+                Schedulers.io().newWorker().scheduleDelay(new Runnable() {
+                    @Override
+                    public void run() {
+                        mConnectCount.decrementAndGet();
+                        conn.close();
+                    }
+                }, 30, TimeUnit.SECONDS);
             }
         }
 
@@ -418,6 +438,7 @@ public class ServerCommunicator implements Disposable {
         final ClientConnection connection;
         final BufferedSource source;
         final BufferedSink sink;
+        int errorCount;
         boolean permit;
 
         public ClientConnectionWrapper(ClientConnection connection) throws IOException {
@@ -435,9 +456,9 @@ public class ServerCommunicator implements Disposable {
         }
 
         public Message<?> readMessage() {
-            Timeout timeout = source.timeout();
+           /* Timeout timeout = source.timeout();
             timeout.clearDeadline();
-            timeout.deadline(5000, TimeUnit.MILLISECONDS);
+            timeout.deadline(5000, TimeUnit.MILLISECONDS);*/
             return OkMessage.readMessage(source);
         }
 
@@ -460,6 +481,9 @@ public class ServerCommunicator implements Disposable {
             } catch (IOException e) {
                 // ignore
             }
+        }
+        public int increaseReadErrorCount() {
+            return ++errorCount;
         }
     }
 

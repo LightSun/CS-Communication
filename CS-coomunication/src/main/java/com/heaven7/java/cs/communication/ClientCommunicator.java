@@ -105,14 +105,14 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
 
     @Override
     public void dispose() {
+        if(mInHelper != null){
+            mInHelper.dispose();
+            mInHelper = null;
+        }
         try {
             mConnector.disconnect();
         } catch (IOException e) {
             //ignore e.printStackTrace();
-        }
-        if(mInHelper != null){
-            mInHelper.dispose();
-            mInHelper = null;
         }
         if (mOutService != null) {
             mOutService.dispose();
@@ -151,11 +151,19 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
         public void run() {
             try{
                 Scheduler.Worker worker = Schedulers.io().newWorker();
-                Timeout timeout = source.timeout();
+                //Timeout timeout = source.timeout();
                 while (!disposed){
-                    timeout.clearDeadline();
-                    timeout.deadline(5000, TimeUnit.MILLISECONDS);
-                    final Message<Object> msg = OkMessage.readMessage(source);
+                    /*timeout.clearDeadline();
+                    timeout.deadline(5000, TimeUnit.MILLISECONDS);*/
+                    Message<Object> msg = null;
+                    try{
+                        msg = OkMessage.readMessage(source);
+                    }catch (Exception e){
+                        //for dispose .we just ignore it.
+                        if(!disposed){
+                            communicator.mMonitor.onReadException(e);
+                        }
+                    }
                     if(msg == null){
                         //wait if need. or else loop until dispose
                         if(sleepTime > 0){
@@ -169,7 +177,7 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
                     }
                 }
             }catch (InterruptedException e){
-                e.printStackTrace();
+                //ignore e.printStackTrace();
             }
         }
     }

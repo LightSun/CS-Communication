@@ -1,6 +1,7 @@
 package com.heaven7.java.cs.communication.impl;
 
 import com.heaven7.java.base.util.DefaultPrinter;
+import com.heaven7.java.base.util.Throwables;
 import com.heaven7.java.cs.communication.ServerMonitor;
 import com.heaven7.java.message.protocol.Message;
 
@@ -86,5 +87,11 @@ public class SimpleServerMonitor implements ServerMonitor {
     @Override
     public void onRemoveClient(String remoteId, String token) {
         DefaultPrinter.getDefault().debug(TAG, "onRemoveClient", "remoteId = " + remoteId + ", token = " + token);
+    }
+
+    @Override
+    public void onReadException(String remoteId, String token, Exception e) {
+      /*  DefaultPrinter.getDefault().warn(TAG, "onReadException", "remoteId = " + remoteId
+                + ", token = " + token + " , exception is " + Throwables.getStackTraceAsString(e));*/
     }
 }

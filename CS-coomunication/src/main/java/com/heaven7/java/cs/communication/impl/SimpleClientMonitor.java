@@ -38,4 +38,9 @@ public class SimpleClientMonitor implements ClientMonitor {
     public void onTick() {
         DefaultPrinter.getDefault().debug(TAG, "onTick", "time is " + System.currentTimeMillis());
     }
+
+    @Override
+    public void onReadException(Exception e) {
+        DefaultPrinter.getDefault().warn(TAG, "onReadException", e);
+    }
 }

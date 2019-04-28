@@ -38,7 +38,7 @@ public class Server3 {
             String line = "";
 
             // reads message from client until "Over" is sent
-            while (!line.equals("Over")) {
+            /*while (!line.equals("Over")) {
                 BufferedSource peek = in.peek();
                 if(!peek.request(8)){
                     System.out.println("message not all reached.");
@@ -53,9 +53,20 @@ public class Server3 {
                 in.skip(8);
                 byte[] bytes = in.readByteArray(len);
                 System.out.println("message reached:  " + new String(bytes, StandardCharsets.UTF_8));
+            }*/
+            while (!line.equals("Over")) {
+                in.skip(4);
+                int len = in.readInt();
+                if(!in.request(len)){
+                    System.out.println("data not reached.");
+                    break;
+                }
+                byte[] bytes = in.readByteArray(len);
+                System.out.println("message reached:  " + new String(bytes, StandardCharsets.UTF_8));
             }
+
             //below is ok.
-           /* while (!line.equals("Over")) {
+            /*while (!line.equals("Over")) {
                 in.skip(4);
                 int len = in.readInt();
                 byte[] bytes = in.readByteArray(len);

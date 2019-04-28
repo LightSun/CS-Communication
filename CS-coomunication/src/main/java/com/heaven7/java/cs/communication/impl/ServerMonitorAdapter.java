@@ -83,4 +83,9 @@ public class ServerMonitorAdapter implements ServerMonitor {
     public void onRemoveClient(String remoteId, String token) {
 
     }
+
+    @Override
+    public void onReadException(String remoteId, String token, Exception e) {
+
+    }
 }

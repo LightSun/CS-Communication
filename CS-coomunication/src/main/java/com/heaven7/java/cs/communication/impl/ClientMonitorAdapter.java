@@ -32,4 +32,9 @@ public class ClientMonitorAdapter implements ClientMonitor {
     public void onTick() {
 
     }
+
+    @Override
+    public void onReadException(Exception e) {
+
+    }
 }

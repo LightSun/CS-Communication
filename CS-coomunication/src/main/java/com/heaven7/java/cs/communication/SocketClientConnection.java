@@ -38,7 +38,8 @@ public class SocketClientConnection implements ServerCommunicator.ClientConnecti
     }
     @Override
     public boolean isAlive() {
-        return mSocket.isConnected() && !mSocket.isClosed();
+        return mSocket.isConnected() && !mSocket.isClosed()
+                && !mSocket.isInputShutdown() && !mSocket.isOutputShutdown();
     }
 
     @Override

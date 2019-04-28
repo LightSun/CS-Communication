@@ -8,7 +8,7 @@ public interface ServerMonitor {
 
     void onStart();
     void onEnd();
-    void onNewClient(String key);
+    void onNewClient(String remoteId);
     void onMessageReceived(Message<?> msg);
 
     void onSendBroadcast(Message<?> msg, List<String> clients);
@@ -25,4 +25,6 @@ public interface ServerMonitor {
 
     void onStartReadMessage(String remoteId, String token);
     void onRemoveClient(String remoteId, String token);
+
+    void onReadException(String remoteId, String token, Exception e);
 }

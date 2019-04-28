@@ -21,7 +21,7 @@ public class Client2 {
     // constructor to put ip address and port
     public Client2(String address, int port) {
         // establish a connection
-        Server2.initialize();
+        Server2.initialize(Server2.PUB_KEY, false);
         try {
             socket = new Socket(address, port);
             System.out.println("Connected");
@@ -30,7 +30,7 @@ public class Client2 {
             input = Okio.buffer(Okio.source(System.in));
 
             // sends output to the socket
-            out = Okio.buffer(Okio.sink(socket.getOutputStream()));
+            out = Okio.buffer(Okio.sink(socket));
         } catch (UnknownHostException u) {
             System.out.println(u);
         } catch (IOException i) {
@@ -46,12 +46,6 @@ public class Client2 {
             entity.setToken("Hello Google");
             entity.setVersion(1.0f);
             OkMessage.writeMessage(out, Message.create(Message.LOGIN, "heaven7", entity), CSConstant.TYPE_RSA_SINGLE);
-            try {
-                out.writeByte(-1);
-                out.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
             System.out.println("client write message success,");
             synchronized (this){
                 try {

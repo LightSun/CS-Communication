@@ -36,7 +36,7 @@ public final class Launcher {
             Schedulers.io().newWorker().scheduleDelay(new Runnable() {
                 @Override
                 public void run() {
-                    client.cancel();
+                    client.logout();
                 }
             }, 30, TimeUnit.SECONDS);
         }else {
