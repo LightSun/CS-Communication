@@ -237,6 +237,8 @@ public class ServerCommunicator implements Disposable {
                 list.addAll(connections);
                 //handle every connection in different threads. (because socket is blocking)
                 for (final ClientConnectionWrapper conn : list) {
+
+                    //TODO handle connection on isolute thread?
                     handleClientConnection(conn);
                 }
                 list.clear();
@@ -443,6 +445,7 @@ public class ServerCommunicator implements Disposable {
         final BufferedSink sink;
         int errorCount;
         boolean permit;
+        boolean firstTime = true;
 
         public ClientConnectionWrapper(ClientConnection connection) throws IOException {
             this.connection = connection;
@@ -489,7 +492,19 @@ public class ServerCommunicator implements Disposable {
             return ++errorCount;
         }
         public boolean isReadyToRead() {
-            return connection.isReadyToRead();
+            boolean result = connection.isReadyToRead();
+            if(firstTime){
+                return result;
+            }else {
+                firstTime = false;
+                try {
+                 //   BufferedSource peek = source.peek();
+                    return result && source.request(8);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return false;
+                }
+            }
         }
     }
 
