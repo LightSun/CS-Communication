@@ -20,17 +20,14 @@ public class SocketClientConnection implements ServerCommunicator.ClientConnecti
     public SocketClientConnection(Socket mSocket) {
         this.mSocket = mSocket;
     }
-
     @Override
     public Sink getSink() throws IOException {
         return Okio.sink(mSocket);
     }
-
     @Override
     public Source getSource() throws IOException {
         return Okio.source(mSocket);
     }
-
     @Override
     public String getRemoteUniqueKey() {
         InetSocketAddress address = (InetSocketAddress) mSocket.getRemoteSocketAddress();
@@ -41,11 +38,14 @@ public class SocketClientConnection implements ServerCommunicator.ClientConnecti
         return mSocket.isConnected() && !mSocket.isClosed()
                 && !mSocket.isInputShutdown() && !mSocket.isOutputShutdown();
     }
-
     @Override
     public void close() throws IOException{
         mSocket.getInputStream().close();
         mSocket.getOutputStream().close();
         mSocket.close();
+    }
+    @Override
+    public boolean isReadyToRead() {
+        return true;
     }
 }

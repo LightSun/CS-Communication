@@ -75,6 +75,7 @@ public class ServerCommunicator implements Disposable {
         String getRemoteUniqueKey();
         boolean isAlive();
         void close() throws IOException;
+        boolean isReadyToRead();
     }
 
     private static final String TAG = "ServerCommunicator";
@@ -232,18 +233,20 @@ public class ServerCommunicator implements Disposable {
         @Override
         public void run() {
             List<ClientConnectionWrapper> list = new ArrayList<>();
-            Scheduler.Worker worker = Schedulers.io().newWorker();
             while (!mClosed.get()) {
                 list.addAll(connections);
                 //handle every connection in different threads. (because socket is blocking)
                 for (final ClientConnectionWrapper conn : list) {
-                    worker.schedule(() -> handleClientConnection(conn));
+                    handleClientConnection(conn);
                 }
                 list.clear();
             }
         }
 
         void handleClientConnection(ClientConnectionWrapper conn){
+            if(!conn.isReadyToRead()){
+                return;
+            }
             String uniqueKey = conn.getRemoteUniqueKey();
             ClientInfo clientInfo = mClientInfoMap.get(uniqueKey);
             boolean removeClient = false;
@@ -484,6 +487,9 @@ public class ServerCommunicator implements Disposable {
         }
         public int increaseReadErrorCount() {
             return ++errorCount;
+        }
+        public boolean isReadyToRead() {
+            return connection.isReadyToRead();
         }
     }
 

@@ -27,6 +27,10 @@ public final class SampleSocketServer implements MessageHandler {
         mCommunicator.dispose();
     }
 
+    public void sendBroadcast() {
+        mCommunicator.sendBroadcast(Message.create(Message.COMMON, "message from sendBroadcast", null));
+    }
+
     @Override
     public void handleMessage(IMessageSender sender, Message<?> obj, float applyVersion) {
         //sample handle message.

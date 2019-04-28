@@ -42,6 +42,12 @@ public final class Launcher {
         }else {
             SampleSocketServer server = new SampleSocketServer(port);
             server.start();
+            Schedulers.io().newWorker().scheduleDelay(new Runnable() {
+                @Override
+                public void run() {
+                    server.sendBroadcast();
+                }
+            }, 18, TimeUnit.SECONDS);
         }
         Thread.yield();
     }
