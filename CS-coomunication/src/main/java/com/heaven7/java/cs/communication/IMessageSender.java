@@ -1,7 +1,7 @@
 package com.heaven7.java.cs.communication;
 
 
-import com.heaven7.java.message.protocol.Message;
+import com.heaven7.java.meshy.Message;
 
 /**
  * @author heaven7

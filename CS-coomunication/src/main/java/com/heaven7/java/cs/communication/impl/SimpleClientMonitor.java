@@ -2,7 +2,7 @@ package com.heaven7.java.cs.communication.impl;
 
 import com.heaven7.java.base.util.DefaultPrinter;
 import com.heaven7.java.cs.communication.ClientMonitor;
-import com.heaven7.java.message.protocol.Message;
+import com.heaven7.java.meshy.Message;
 
 import static com.heaven7.java.cs.communication.impl.MessageLog.getStateString;
 import static com.heaven7.java.cs.communication.impl.MessageLog.getTypeString;

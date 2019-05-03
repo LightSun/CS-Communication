@@ -5,8 +5,8 @@ import com.heaven7.java.cs.communication.*;
 import com.heaven7.java.cs.communication.entity.BaseEntity;
 import com.heaven7.java.cs.communication.impl.SimpleClientMonitor;
 import com.heaven7.java.cs.communication.util.JwtUtil;
-import com.heaven7.java.message.protocol.Message;
-import com.heaven7.java.message.protocol.MessageConfigManager;
+import com.heaven7.java.meshy.Meshy;
+import com.heaven7.java.meshy.Message;
 import com.heaven7.java.pc.schedulers.Schedulers;
 
 import java.io.IOException;
@@ -17,10 +17,12 @@ public final class SampleSocketClient implements MessageHandler{
 
     private static final String TAG = "SampleSocketClient";
     private final ClientCommunicator mCommunicator;
+    private final float version;
     private BaseEntity mCoreEntity;
 
-    public SampleSocketClient(HostDelegate host) {
-        this.mCommunicator = new ClientCommunicator(new ClientSocketConnector(host), this, 500);
+    public SampleSocketClient(Meshy meshy, HostDelegate host) {
+        this.mCommunicator = new ClientCommunicator(meshy, new ClientSocketConnector(host), this, 500);
+        this.version = meshy.getVersion();
         mCommunicator.setClientMonitor(new SimpleClientMonitor());
     }
 
@@ -30,7 +32,7 @@ public final class SampleSocketClient implements MessageHandler{
             if(result){
                 BaseEntity entity = new BaseEntity();
                 entity.setToken(JwtUtil.generateToken("sample_client", null));
-                entity.setVersion(MessageConfigManager.getVersion());
+                entity.setVersion(version);
                 Message<Object> msg = Message.create(Message.LOGIN, "i want to login", entity);
                 mCommunicator.sendMessage(msg);
             }

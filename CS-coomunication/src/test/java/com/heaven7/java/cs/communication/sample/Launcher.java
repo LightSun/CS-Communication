@@ -1,6 +1,7 @@
 package com.heaven7.java.cs.communication.sample;
 
 import com.heaven7.java.cs.communication.SimpleHost;
+import com.heaven7.java.meshy.Meshy;
 import com.heaven7.java.pc.schedulers.Schedulers;
 
 import java.util.HashMap;
@@ -28,10 +29,10 @@ public final class Launcher {
         }
         boolean isClient = Boolean.valueOf(params.get(KEY_IS_CLIENT));
         int port = Integer.valueOf(params.get(KEY_PORT));
-        SampleInitializer.initialize(params.get(KEY_RSA_KEY), !isClient);
+        Meshy meshy = SampleInitializer.initialize(params.get(KEY_RSA_KEY), !isClient);
 
         if(isClient){
-            final SampleSocketClient client = new SampleSocketClient(new SimpleHost(params.get(KEY_HOST), port));
+            final SampleSocketClient client = new SampleSocketClient(meshy, new SimpleHost(params.get(KEY_HOST), port));
             client.start();
             Schedulers.io().newWorker().scheduleDelay(new Runnable() {
                 @Override
@@ -40,7 +41,7 @@ public final class Launcher {
                 }
             }, 30, TimeUnit.SECONDS);
         }else {
-            SampleSocketServer server = new SampleSocketServer(port);
+            SampleSocketServer server = new SampleSocketServer(meshy, port);
             server.start();
             Schedulers.io().newWorker().scheduleDelay(new Runnable() {
                 @Override

@@ -1,12 +1,12 @@
 package com.heaven7.java.cs.communication.sample;
 
 import com.heaven7.java.cs.communication.CSConstant;
-import com.heaven7.java.message.protocol.MessageConfig;
-import com.heaven7.java.message.protocol.MessageConfigManager;
-import com.heaven7.java.message.protocol.policy.DefaultRSASegmentationPolicy;
-import com.heaven7.java.message.protocol.secure.MessageSecureFactory;
-import com.heaven7.java.message.protocol.secure.SingleRSAMessageSecure;
-import com.heaven7.java.message.protocol.signature.MD5SaltSignature;
+import com.heaven7.java.meshy.Meshy;
+import com.heaven7.java.meshy.MeshyBuilder;
+import com.heaven7.java.meshy.secure.SingleRSAMessageSecure;
+import com.heaven7.java.meshy.util.RSAUtils;
+
+import java.security.Key;
 
 /**
  * the simple class to init message configuration.
@@ -14,19 +14,12 @@ import com.heaven7.java.message.protocol.signature.MD5SaltSignature;
  */
 public final class SampleInitializer {
 
-    public static void initialize(String rsaKey, boolean priKey){
-        MessageConfig config = MessageConfig.newConfig();
-        config.version = 1.0f;
-        config.signKey = "Google/heaven7";
-        config.signature = new MD5SaltSignature();
-        //rsa-512 means max 53 . 1024 means max 117
-        config.segmentationPolicy = new DefaultRSASegmentationPolicy(53);
-        try {
-            config.secures.put(CSConstant.TYPE_RSA_SINGLE, MessageSecureFactory.createMessageSecure(
-                    SingleRSAMessageSecure.class.getName(), rsaKey, priKey +""));
-        } catch (Exception e) {
-           throw new RuntimeException(e);
-        }
-        MessageConfigManager.initialize(config);
+    public static Meshy initialize(String rsaKey, boolean priKey){
+        Key key = priKey ? RSAUtils.getPrivateKey(rsaKey) : RSAUtils.getPublicKey(rsaKey);
+        return new MeshyBuilder()
+                .setVersion(1.0f)
+                .setSignatureKey("Hello Google")
+                .registerMessageSecure(CSConstant.TYPE_RSA_SINGLE, new SingleRSAMessageSecure(key.getEncoded(), priKey))
+                .build();
     }
 }

@@ -1,11 +1,12 @@
 package com.heaven7.java.cs.communication.impl;
 
-import com.heaven7.java.message.protocol.Message;
+import com.heaven7.java.meshy.Message;
 
 /**
  * @author heaven7
  */
-public class MessageLog {
+public final class MessageLog {
+
     public static String getStateString(int state) {
         switch (state){
             case Message.SUCCESS:

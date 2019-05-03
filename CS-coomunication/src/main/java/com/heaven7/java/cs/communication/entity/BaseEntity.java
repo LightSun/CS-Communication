@@ -1,7 +1,8 @@
 package com.heaven7.java.cs.communication.entity;
 
-import com.heaven7.java.message.protocol.anno.FieldMember;
-import com.heaven7.java.message.protocol.anno.Inherit;
+
+import com.heaven7.java.meshy.anno.FieldMember;
+import com.heaven7.java.meshy.anno.Inherit;
 
 /**
  * @author heaven7

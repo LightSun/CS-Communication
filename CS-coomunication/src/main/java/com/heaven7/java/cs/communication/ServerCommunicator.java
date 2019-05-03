@@ -2,12 +2,10 @@ package com.heaven7.java.cs.communication;
 
 import com.heaven7.java.base.util.DefaultPrinter;
 import com.heaven7.java.base.util.Disposable;
-import com.heaven7.java.base.util.Scheduler;
 import com.heaven7.java.base.util.ThreadProxy;
 import com.heaven7.java.cs.communication.entity.BaseEntity;
-import com.heaven7.java.message.protocol.Message;
-import com.heaven7.java.message.protocol.MessageConfigManager;
-import com.heaven7.java.message.protocol.OkMessage;
+import com.heaven7.java.meshy.Meshy;
+import com.heaven7.java.meshy.Message;
 import com.heaven7.java.pc.schedulers.Schedulers;
 import okio.*;
 
@@ -93,6 +91,7 @@ public class ServerCommunicator implements Disposable {
     private final Looper mLooper = new Looper();
 
     private final long mMaxTickTimeSpace;
+    private final Meshy mMeshy;
     private final Connector mConnector;
     private final MessageHandler nHandler;
     private final Callback mInternalCallback;
@@ -102,12 +101,14 @@ public class ServerCommunicator implements Disposable {
 
     /**
      * create server communicator
+     * @param mMeshy the meshy
      * @param tickTimeSpace the max tick time space in mills
      * @param mInternalCallback the internal callback of server
      * @param connector the connector
      * @param handler the message handler
      */
-    public ServerCommunicator(long tickTimeSpace, Callback mInternalCallback, Connector connector, MessageHandler handler) {
+    public ServerCommunicator(Meshy mMeshy,long tickTimeSpace, Callback mInternalCallback, Connector connector, MessageHandler handler) {
+        this.mMeshy = mMeshy;
         this.nHandler = handler;
         this.mProxy = ThreadProxy.create(sFACTORY);
         this.mInternalCallback = mInternalCallback;
@@ -154,13 +155,14 @@ public class ServerCommunicator implements Disposable {
      * @return true if send success. false otherwise
      */
     public boolean sendBroadcast(Message<Object> msg){
-        if(mLooper != null){
+        if(mLooper.isOpen()){
             mLooper.sendBroadcast(msg);
             mMonitor.onSendBroadcast(msg, null);
             return true;
+        }else {
+            mMonitor.onSendBroadcastFailed(msg);
+            return false;
         }
-        mMonitor.onSendBroadcastFailed(msg);
-        return false;
     }
 
     /**
@@ -170,13 +172,14 @@ public class ServerCommunicator implements Disposable {
      * @return true if send success. false otherwise
      */
     public boolean sendBroadcast(Message<Object> msg, List<String> clients){
-        if(mLooper != null){
+        if(mLooper.isOpen()){
             mLooper.sendBroadcast(msg, clients);
             mMonitor.onSendBroadcast(msg, clients);
             return true;
+        }else {
+            mMonitor.onSendBroadcastFailed(msg);
+            return false;
         }
-        mMonitor.onSendBroadcastFailed(msg);
-        return false;
     }
 
     /**
@@ -210,15 +213,16 @@ public class ServerCommunicator implements Disposable {
 
         @Override
         public void reportNewConnection(ClientConnection cc) {
-            mClientInfoMap.put(cc.getRemoteUniqueKey(), new ClientInfo());
+            String remoteId = cc.getRemoteUniqueKey();
+            mClientInfoMap.put(remoteId, new ClientInfo());
             mConnectCount.incrementAndGet();
             try {
                 mLooper.addClientConnection(cc);
-                mMonitor.onNewClient(cc.getRemoteUniqueKey());
+                mMonitor.onNewClient(remoteId);
             } catch (IOException e) {
-                mClientInfoMap.remove(cc.getRemoteUniqueKey());
+                mClientInfoMap.remove(remoteId);
                 mConnectCount.decrementAndGet();
-                mMonitor.onAddClientError(cc.getRemoteUniqueKey(), e);
+                mMonitor.onAddClientError(remoteId, e);
                 e.printStackTrace();
             }
         }
@@ -238,6 +242,9 @@ public class ServerCommunicator implements Disposable {
         private final ThreadProxy mProxy_looper = ThreadProxy.create(sFACTORY) ;
 
         public Looper() {
+        }
+        public boolean isOpen(){
+            return !mClosed.get();
         }
 
         public void start() {
@@ -340,7 +347,7 @@ public class ServerCommunicator implements Disposable {
                         mMonitor.onValidateTempTokenSuccess(entity.getToken(), clientInfo.token);
                         // gen token and response.
                         entity.setToken(clientInfo.token);
-                        entity.setVersion(MessageConfigManager.getVersion());
+                        entity.setVersion(mMeshy.getVersion());
                         outMessage =
                                 Message.create(msg.getType(), Message.SUCCESS, SUCCESS, entity);
                     } else {
@@ -426,7 +433,7 @@ public class ServerCommunicator implements Disposable {
 
         public void addClientConnection(ClientConnection cc) throws IOException {
             if(cc.isAlive()){
-                final ClientConnectionWrapper wrapper = new ClientConnectionWrapper(cc);
+                final ClientConnectionWrapper wrapper = new ClientConnectionWrapper(mMeshy, cc);
                 connections.add(wrapper);
 
                 //for blocking mode . we need add task to pool. or else the extra thread will loop the 'wrapper'.
@@ -497,13 +504,15 @@ public class ServerCommunicator implements Disposable {
     }
 
     private static class ClientConnectionWrapper implements IMessageSender {
+        final Meshy meshy;
         final ClientConnection connection;
         final BufferedSource source;
         final BufferedSink sink;
         int errorCount;
         boolean permit;
 
-        public ClientConnectionWrapper(ClientConnection connection) throws IOException {
+        public ClientConnectionWrapper(Meshy meshy, ClientConnection connection) throws IOException {
+            this.meshy = meshy;
             this.connection = connection;
             this.source = Okio.buffer(connection.getSource());
             this.sink = Okio.buffer(connection.getSink());
@@ -521,19 +530,19 @@ public class ServerCommunicator implements Disposable {
            /* Timeout timeout = source.timeout();
             timeout.clearDeadline();
             timeout.deadline(5000, TimeUnit.MILLISECONDS);*/
-            return OkMessage.readMessage(source);
+            return meshy.getReader().readMessage(source);
         }
 
         @Override
         public boolean sendMessage(Message<Object> msg, float version) {
-            OkMessage.writeMessage(sink, msg, CSConstant.TYPE_RSA_SINGLE, version);
+            meshy.getWriter().writeMessage(sink, msg, CSConstant.TYPE_RSA_SINGLE, version);
             return true;
         }
 
         @Override
         public boolean sendMessage(Message<Object> msg) {
-            OkMessage.writeMessage(
-                    sink, msg, CSConstant.TYPE_RSA_SINGLE, MessageConfigManager.getVersion());
+            meshy.getWriter().writeMessage(
+                    sink, msg, CSConstant.TYPE_RSA_SINGLE, meshy.getVersion());
             return true;
         }
 

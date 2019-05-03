@@ -3,9 +3,8 @@ package com.heaven7.java.cs.communication;
 import com.heaven7.java.base.util.Disposable;
 import com.heaven7.java.base.util.Scheduler;
 import com.heaven7.java.base.util.ThreadProxy;
-import com.heaven7.java.message.protocol.Message;
-import com.heaven7.java.message.protocol.MessageConfigManager;
-import com.heaven7.java.message.protocol.OkMessage;
+import com.heaven7.java.meshy.Meshy;
+import com.heaven7.java.meshy.Message;
 import com.heaven7.java.pc.ProductContext;
 import com.heaven7.java.pc.Transformers;
 import com.heaven7.java.pc.consumers.SimpleConsumer;
@@ -15,9 +14,6 @@ import com.heaven7.java.pc.schedulers.Schedulers;
 import okio.*;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.concurrent.TimeUnit;
 
 import static com.heaven7.java.cs.communication.CSConstant.TYPE_RSA_SINGLE;
 
@@ -41,21 +37,22 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
     private InputStreamHelper mInHelper;
 
     private final long mReadSleepTime;
+    private final Meshy mMeshy;
     private final Connector mConnector;
     private final MessageHandler mHandler;
     private ClientMonitor mMonitor;
 
-    public ClientCommunicator(Connector mConnector, MessageHandler handler, long readSleepTime) {
-        this(mConnector, handler, readSleepTime, 8);
+    public ClientCommunicator(Meshy mMeshy,Connector mConnector, MessageHandler handler, long readSleepTime) {
+        this(mMeshy, mConnector, handler, readSleepTime, 8);
     }
 
-    private ClientCommunicator(Connector mConnector, MessageHandler handler, long readSleepTime, int queueSize) {
+    private ClientCommunicator(Meshy mMeshy, Connector mConnector, MessageHandler handler, long readSleepTime, int queueSize) {
+        this.mMeshy = mMeshy;
         this.mConnector = mConnector;
         this.mHandler = handler;
         this.mReadSleepTime = readSleepTime;
         this.mOutProducer = new PipeProducer<>(queueSize);
     }
-
     public ClientMonitor getClientMonitor(){
         return mMonitor;
     }
@@ -71,7 +68,7 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
                         .scheduler(Schedulers.io())
                         .producer(mOutProducer)
                         .transformer(Transformers.unchangeTransformer())
-                        .consumer(new OutputStreamConsumer(mConnector.getSink()))
+                        .consumer(new OutputStreamConsumer(mMeshy, mConnector.getSink()))
                         .build();
         if(!mOutService.start()){
             mMonitor.onStart(false);
@@ -151,13 +148,14 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
         public void run() {
             try{
                 Scheduler.Worker worker = Schedulers.io().newWorker();
+                Meshy mMeshy = communicator.mMeshy;
                 //Timeout timeout = source.timeout();
                 while (!disposed){
                     /*timeout.clearDeadline();
                     timeout.deadline(5000, TimeUnit.MILLISECONDS);*/
                     Message<Object> msg = null;
                     try{
-                        msg = OkMessage.readMessage(source);
+                        msg = mMeshy.getReader().readMessage(source);
                     }catch (Exception e){
                         //for dispose .we just ignore it.
                         if(!disposed){
@@ -191,19 +189,21 @@ public final class ClientCommunicator implements Disposable, ProductContext, IMe
         }
         @Override
         public void run() {
-            communicator.mHandler.handleMessage(communicator, msg, MessageConfigManager.getVersion());
+            communicator.mHandler.handleMessage(communicator, msg, communicator.mMeshy.getVersion());
         }
     }
 
     private static class OutputStreamConsumer extends SimpleConsumer<Message<Object>> {
+        private final Meshy meshy;
         private final BufferedSink sink;
 
-        public OutputStreamConsumer(Sink out) {
+        public OutputStreamConsumer( Meshy meshy, Sink out) {
+            this.meshy = meshy;
             this.sink = Okio.buffer(out);
         }
         @Override
         public void onConsume(Message<Object> obj, Runnable next) {
-            OkMessage.writeMessage(sink, obj, TYPE_RSA_SINGLE); //need register message secure by this type
+            meshy.getWriter().writeMessage(sink, obj, TYPE_RSA_SINGLE); //need register message secure by this type
             next.run();
         }
     }
